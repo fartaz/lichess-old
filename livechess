@@ -1,0 +1,959 @@
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+
+	<title>Chess</title>
+	<style type="text/css">
+	body{
+		font-family: Trebuchet MS, Lucida Sans Unicode, Arial, sans-serif;
+		margin:0px;
+	}
+	#ad{
+		padding-left:5px;
+		padding-bottom:4px;
+	}
+	#boardAndMoves{
+		width:520px;
+		clear:both;
+		padding-bottom:5px;
+		margin-left:5px;
+	}
+	
+	#number_18{	/* Number 1 - 8 */
+		width:20px;
+		float:left;
+		color: #FFF;
+	}
+	#number_18 div{	/* Div for each number */
+		text-align:center;
+		height:38px;
+		line-height:38px;
+		vertical-align:middle;	
+	}
+	#number_AH{	/* Number A-H */
+		padding-left:20px;
+		clear:both;	
+		color: #FFF;	
+	}
+	#number_AH div{	/* Div for each letter */
+		width:38px;
+		text-align:center;
+		line-height:20px;
+		vertical-align:middle;
+		float:left
+	}
+		
+	#headerText{	/* Header above board */
+		margin:0px;
+		height:30px;
+		background-color:#408080;
+		color:#FFF;
+		width:520px;
+		margin-bottom:10px;
+		text-align:center;
+		line-height:30px;
+		font-size:0.8em;
+		margin-left:5px;
+	}
+	
+	#boardContainer{	/* Container for the board  + numbers/letters*/
+		width:340px;
+		font-family:arial;
+		font-weight:bold;
+		float:left;
+		border:1px solid #000;
+		margin-right:5px;
+		background-color:#408080;
+		padding-top:5px;
+	}
+
+	#theBoard{	/* The board */
+		float:left;
+		width:304px;
+		height:304px;
+		background-image:url('images/board.gif');
+		background-repeat:no-repeat;
+		background-position: top left;
+		position:relative;
+		border:2px solid #FFF;
+	}
+	#theBoard div{
+		width:38px;
+		height:38px;
+		position:absolute;
+	}
+
+	#buttons form{
+		display:inline;
+	}
+	#buttons input{
+		width:30px;
+	}
+	#buttons input.playButtons{
+		width:65px;
+	}
+	#buttons{
+		text-align:right;
+		width:520px;
+		padding-bottom:10px;
+	}
+	#notation{	/* Div for notations */
+		width:150px;
+		float:right;
+		height:341px;
+	}
+	
+	#notation,#games{	/* General rules for both notations and games */
+		border:1px solid #000;
+		font-family:arial;
+		font-size:0.8em;
+		overflow:auto;
+		overflow-y:auto;
+		overflow: -moz-scrollbars-vertical;	
+	}
+
+	#games{
+		width:500px;
+		clear:both;
+		height:200px;
+		margin-left:5px;
+	}
+	#notation,#games tr{
+		vertical-align:top;
+		border-bottom:1px solid #CCC;
+	}
+	#notation table,#games table{
+		width:100%;
+		padding:0px;
+		margin:0px;
+	}
+	
+	#notation td,#games td{
+		cursor:pointer;
+		border-bottom:1px solid #CCC;
+	}
+	
+	#notation .activeRow,#games .activeRow{
+		color:#FFF;
+		background-color:#316AC5;
+	}
+	#notation .activeMoveCell{
+		font-weight:bold;
+	}
+
+	#notation thead tr,#games thead tr{
+		position:relative;
+		top:0px;
+		bottom:0px;
+	}
+	tbody.scrollingContent{
+		overflow-y:auto;
+		overflow:-moz-scrollbars-vertical;
+	}
+
+	#notation th,#games th{
+		text-align:left;
+		background-color:#ECE9D8;
+		padding:1px;
+		margin:0px;
+		border-right:1px solid #000;
+		border-bottom:1px solid #000;
+		border-left:1px solid #FFF;
+		border-top:1px solid #FFF;
+		font-weight:normal;
+	}
+	#notation .moveNo{	/* First column of notation table */
+		text-align:right;
+		padding-right:5px;
+	}
+	.clear{
+		clear:both;
+	}
+
+	/* Firefox rules */
+	
+	html>body div#games,html>body div#notation {
+		overflow: hidden;
+	}
+	html>body #games tbody{
+		height:180px;
+	}
+	html>body #notation tbody{
+		height:310px;
+		width:100%;
+	}
+	html>body #notation{
+		height:330px;
+	}
+	html>body #games{
+		width:520px;
+	}
+
+	</style>
+	<script type="text/javascript" src="js/ajax.js"></script>
+	<script type="text/javascript">	
+	var widgetObj;
+	var useAjax = true;
+
+	function baseConverter (number,oldBase,newBase) {
+		number = number + "";
+		number = number.toUpperCase();
+		var list = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+		var dec = 0;
+		for (var i = 0; i <=  number.length; i++) {
+			dec += (list.indexOf(number.charAt(i))) * (Math.pow(oldBase , (number.length - i - 1)));
+		}
+		number = "";
+		var magnitude = Math.floor((Math.log(dec))/(Math.log(newBase)));
+		for (var i = magnitude; i >= 0; i--) {
+			var amount = Math.floor(dec/Math.pow(newBase,i));
+			number = number + list.charAt(amount); 
+			dec -= amount*(Math.pow(newBase,i));
+		}
+		if(number.length==0)number=0;
+		return number;
+	}
+	
+	function ChessWidget()
+	{
+		var boardObj;	
+		var boardPieces;		
+		var typesOfPieces;
+		var moves;
+		var activeMoveRow;
+		var activeMoveCell;
+		var activeGameRow;
+		var currentMove;
+		var playerTurn;
+		var ajax;
+		var games;
+		var ajaxIsBusy;
+		var playModeInProgress;
+		var playingSpeed;
+		
+	}
+	
+	ChessWidget.prototype = {
+		
+		initScript : function()
+		{
+			this.boardObj = document.getElementById('theBoard');	
+			this.typesOfPieces = ['p','p','p','p','p','p','p','p','R','N','B','Q','K','B','N','R'];	// p = pawn, r = rook,n = knight, b = bishop, q = queen, k = king
+			widgetObj = this;
+			this.currentMove = 0;
+			this.boardPieces = new Array();
+			this.games = new Array();
+			this.ajaxIsBusy = false;
+			this.playModeInProgress = false;
+			this.playingSpeed = 1500;	// Play speed = 1 one move per 1.5 second
+			if(useAjax)this.ajax = new sack();
+			this._fixLayoutIe7();
+		}
+		,
+		_fixLayoutIe7 : function() {
+			
+			if(navigator.userAgent.indexOf('MSIE 7')>=0) {
+			
+				var tbody = document.getElementById('notation').getElementsByTagName('TBODY')[0];
+				tbody.style.height = 'auto';
+				var tbody = document.getElementById('games').getElementsByTagName('TBODY')[0];
+				tbody.style.height = 'auto';
+				document.getElementById('notation').style.overflowY = 'auto';
+				document.getElementById('games').style.overflowY = 'auto';
+			}			
+		}
+		,		
+		getMoves : function()	// Get moves - This function should use AJAX to retreve data from pgn file
+		{
+
+			try{
+				eval(widgetObj.ajax.response);
+			}catch(e){
+				alert(widgetObj.ajax.response);	
+			}
+			widgetObj.writeNotation();
+			widgetObj.ajaxIsBusy = false;
+			widgetObj.createPieces();
+		}
+		
+		,
+		
+		writeNotation : function()
+		{
+			var tBodyObj = document.getElementById('notation').getElementsByTagName('TBODY')[0];
+			if(tBodyObj.parentNode.rows.length>0){
+				while(tBodyObj.parentNode.rows.length>1){
+					tBodyObj.removeChild(tBodyObj.parentNode.rows[tBodyObj.parentNode.rows.length-1]);					
+				}
+			}
+
+			var firstCell = false;
+			if(!this.moves)return;
+			for(var no=0;no<this.moves.length;no++){
+				var row = tBodyObj.insertRow(no);
+				row.id = 'move' + no;
+				var cell = row.insertCell(-1);				
+				cell.innerHTML = (no+1);
+				cell.className='moveNo';	
+				cell.onclick = this.movePiece;
+				cell.id = 'moveNo' + no;
+				if(!firstCell)firstCell = cell.id;
+				
+				var cell = row.insertCell(-1);				
+				cell.innerHTML = this.moves[no][0];
+				cell.id = 'white' + no;
+				cell.onclick = this.movePiece;
+				
+				if(this.moves[no][1]){
+					var cell = row.insertCell(-1);
+					cell.innerHTML = this.moves[no][1];
+					cell.id = 'black' + no;
+					cell.onclick = this.movePiece;
+				}
+				
+			}	
+			
+			if(firstCell){
+				setTimeout('widgetObj.highlightRow(document.getElementById("' + firstCell + '"))',10);	
+				
+			}	
+		}
+		
+		,
+		
+		movePiece : function()
+		{			
+			var newMoveIndex = (this.id.replace(/[^0-9]/g,'')/1)*2;
+			if(this.id.indexOf('white')>=0)newMoveIndex++;
+			if(this.id.indexOf('black')>=0)newMoveIndex+=2;				
+			if(newMoveIndex<widgetObj.currentMove) widgetObj.createPieces();	// Reset original position			
+			widgetObj.moveOnBoard(newMoveIndex);		
+		
+		}
+		
+		,
+		
+		getObjectAtPosition: function(x,y,playerIndex)
+		{
+			for(var no=0;no<this.boardPieces[playerIndex].length;no++){
+				var obj = this.boardPieces[playerIndex][no];
+				if(obj['onboard'] && obj['x'] == x && obj['y'] == y){
+					return this.boardPieces[playerIndex][no];
+				}		
+			}
+			
+			return false;
+			
+			
+			
+		}
+		,
+		
+		moveOnBoard : function(moveTo)
+		{		
+			
+			var string = "";
+			var lastMove = false;
+			for(var no=widgetObj.currentMove;no<moveTo;no++){	// Loop through new moves
+				
+				var moveIndex = Math.floor(no/2);
+				var playerIndex = no % 2;
+				
+				this.translateAMove(this.moves[moveIndex][playerIndex],playerIndex) + '\n';
+				if(playerIndex==0)prefix = 'white';else prefix = 'black';
+				
+				if(no==moveTo-1)lastMove = true;
+				widgetObj.highlightRow(document.getElementById(prefix + moveIndex),lastMove);
+				
+				
+			}
+			widgetObj.currentMove = moveTo;
+		}
+		
+		,
+		doCastle : function(kingSide,playerIndex)
+		{
+			
+			for(var no=0;no<this.boardPieces[playerIndex].length;no++){
+				var obj = this.boardPieces[playerIndex][no];
+				if(obj['pieceType']=='R' && obj['x']==8 && kingSide){
+					newPos = 6;
+					obj['x']=newPos;
+					obj['obj'].style.left = (newPos-1) * 38 + 'px';	
+					this.setPieceBg(obj['obj'],obj['x'],obj['y']);					
+				}
+				if(obj['pieceType']=='R' && obj['x']==1 && !kingSide){
+					newPos = 4;
+					obj['x']=newPos;
+					obj['obj'].style.left = (newPos-1) * 38 + 'px';	
+					this.setPieceBg(obj['obj'],obj['x'],obj['y']);					
+				}
+				
+				
+				if(obj['pieceType']=='K' && obj['x']==5){
+					if(kingSide)newPos = 7; else newPos = 3;
+					obj['x']=newPos;
+					obj['obj'].style.left = (newPos-1) * 38 + 'px';	
+					this.setPieceBg(obj['obj'],obj['x'],obj['y']);					
+				}				
+			}				
+			
+		}
+		
+		,
+		
+		setPieceBg : function(obj,x,y)
+		{
+			var blackOrWhiteBg = (x + (y-1*8)) % 2 ;				
+			if(blackOrWhiteBg==0)blackOrWhiteBg = 'b'; else blackOrWhiteBg = 'w';
+			var img = obj.getElementsByTagName('IMG')[0];
+			img.src = img.src.replace('w.gif',blackOrWhiteBg + '.gif');
+			img.src = img.src.replace('b.gif',blackOrWhiteBg + '.gif');				
+		}				
+		,		
+		translateAMove : function(whichMove,playerIndex)
+		{
+			if(playerIndex==1)otherPlayerIndex = 0; else otherPlayerIndex = 1;
+			if(whichMove=='O-O')this.doCastle(true,playerIndex);
+			if(whichMove=='O-O-O')this.doCastle(false,playerIndex);
+			if(whichMove.indexOf('O-O')>=0)return;
+			var piecePromotion = false;
+			var promoteTo = false;
+			whichMove = whichMove.replace('+','');			
+			var takeAPiece = whichMove.indexOf('x')>0?true:false;		
+			
+			whichMove = whichMove.replace('x','');
+			if(whichMove.indexOf('8=')>=0){
+				piecePromotion = true;
+				promoteTo = whichMove.replace(/.*?8=([A-Z])/gi,'$1');
+				whichMove = whichMove.replace(/8=[A-Z]/gi,'8');	
+			}
+			
+			var moveTo = whichMove.substr(whichMove.length-2,2);
+			if(whichMove.length>2)pieceType = whichMove.substr(0,1);else pieceType = 'p';
+
+			var colToMove = false;
+			var rowToMove = false;
+
+						
+			if(whichMove.length>3){
+				var colOrRow = whichMove.substr(1,1);
+				if(colOrRow.match(/[a-z]/gi))colToMove = colOrRow; else colToMove = false;
+				if(colOrRow.match(/[0-9]/gi))rowToMove = colOrRow; else rowToMove = false;
+			
+			}
+			
+			
+			if(!pieceType.match(/p|K|N|Q|R|B/)){
+				colToMove = pieceType;
+				rowToMove = pieceType;
+				pieceType = 'p';				
+			}
+
+			if(takeAPiece){
+				var tmpCol = whichMove.substr(0,1);
+				if(tmpCol.match(/[a-h]/g))colToMove = tmpCol;
+				
+			}
+						
+			if(colToMove)colToMove = baseConverter(colToMove,16,10) - 9;
+			
+			var moveToX = baseConverter(moveTo.substr(0,1),16,10) - 9;
+			var moveToY = moveTo.substr(1,1);
+			var objectToMove = false;
+			var objectToRemove = false;
+			var pieceToMoveIndex = false;		
+
+			var pawnSpace = 10;
+			
+			for(var no=0;no<this.boardPieces[playerIndex].length;no++){	// Looping through board pieces
+				var obj = this.boardPieces[playerIndex][no];	// Short reference
+
+				if(!obj['onboard'])continue;
+				if(colToMove && colToMove!=obj['x']){
+					continue;
+				}
+				if(rowToMove && rowToMove!=obj['y'] && obj['pieceType']!='p'){
+					continue;
+				}
+				
+				if(obj['pieceType']==pieceType){	// Piece matched
+					
+					switch(pieceType){
+						
+						case "p":	// pawn
+							var pawnDirection = playerIndex%2==0?1:-1;
+							if(!takeAPiece && obj['x']==moveToX && Math.abs(obj['y']-moveToY)<pawnSpace){
+								objectToMove = this.boardPieces[playerIndex][no]['obj'];
+								pieceToMoveIndex = no;
+								pawnSpace = Math.abs(obj['y']-moveToY);
+							}
+
+							if(takeAPiece && obj['y'] == moveToY-pawnDirection && (obj['x']==(moveToX-1) || obj['x']==(moveToX+1))){
+								objectToMove = this.boardPieces[playerIndex][no]['obj'];	
+								pieceToMoveIndex = no;
+							}
+							break;	
+						case "N":	// Knight
+							var diffX = Math.abs(obj['x'] - moveToX);
+							var diffY = Math.abs(obj['y'] - moveToY);
+							if((diffX==1 && diffY==2) || (diffX==2 && diffY==1)){
+								objectToMove = this.boardPieces[playerIndex][no]['obj'];
+								pieceToMoveIndex = no;
+							}
+						
+							break;
+							
+						case "B":
+							var diffX = Math.abs(obj['x'] - moveToX);
+							var diffY = Math.abs(obj['y'] - moveToY);							
+							if(diffX==diffY){
+								objectToMove = this.boardPieces[playerIndex][no]['obj'];
+								pieceToMoveIndex = no;
+							}
+							break;
+						case "R":
+							var diffX = Math.abs(obj['x'] - moveToX);
+							var diffY = Math.abs(obj['y'] - moveToY);	
+									
+							if(diffX== 0 || diffY==0){
+								var occupied = false;
+								if(diffY==0){
+									for(var ocNo=Math.min(obj['x']+1,moveToX);ocNo<=Math.max(obj['x']-1,moveToX);ocNo++){
+										var tmpObj = this.getObjectAtPosition(ocNo,moveToY,playerIndex);
+										if(tmpObj){
+											occupied = true;
+											break;
+										}
+									}
+								}								
+								if(diffX==0){
+									for(var ocNo=Math.min(obj['y']+1,moveToY);ocNo<=Math.max(obj['y']-1,moveToY);ocNo++){
+										var tmpObj = this.getObjectAtPosition(moveToX,ocNo,playerIndex);
+										if(tmpObj){
+											occupied = true;
+											break;
+										}										
+									}
+								}
+								if(!occupied){
+									objectToMove = this.boardPieces[playerIndex][no]['obj'];
+									pieceToMoveIndex = no;
+								}
+							}						
+							break;	
+						case "Q":	// Queen
+							objectToMove = this.boardPieces[playerIndex][no]['obj'];
+							pieceToMoveIndex = no;
+							break;
+														
+						case "K":
+							objectToMove = this.boardPieces[playerIndex][no]['obj'];
+							pieceToMoveIndex = no;
+							break;
+					}
+				}
+
+				if(objectToMove && pieceType!='p')break;			
+			}
+			
+			if(promoteTo){
+				this.boardPieces[playerIndex][pieceToMoveIndex]['pieceType'] = promoteTo;
+				var img = objectToMove.getElementsByTagName('IMG')[0];
+				var source = img.src;
+				source = source.replace(/\/([wb])p/g,'/$1' + promoteTo.toLowerCase());
+				
+				
+				img.src = source;
+				
+			}
+			
+			if(takeAPiece){
+				objectToRemove = this.getObjectAtPosition(moveToX,moveToY,otherPlayerIndex);
+
+			}
+			
+			
+			if(objectToMove){
+				
+				objectToMove.style.left = (moveToX - 1) * 38 + 'px';
+				objectToMove.style.top = ((8 - moveToY) * 38) + 'px';				
+				
+				this.setPieceBg(objectToMove,moveToX,moveToY);
+
+				
+				this.boardPieces[playerIndex][pieceToMoveIndex]['x'] = moveToX;
+				this.boardPieces[playerIndex][pieceToMoveIndex]['y'] = moveToY;
+				
+			}
+			
+			if(objectToRemove){
+				objectToRemove['onboard'] = false;
+				objectToRemove['obj'].style.display='none';
+				
+				
+			}
+			
+			
+			
+		}
+		
+		,		
+		
+		highlightRow : function(inputObj,lastMoveInSequence)	// Highlight a row
+		{
+			if(inputObj.parentNode.id.indexOf('move')>=0){
+				if(this.activeMoveRow)this.activeMoveRow.className='';
+				this.activeMoveRow = inputObj.parentNode;	
+				if(inputObj.className!='moveNo'){
+					if(this.activeMoveCell)this.activeMoveCell.className='';
+					inputObj.className='activeMoveCell';
+					this.activeMoveCell = inputObj;
+				}
+			}else{
+				if(this.activeGameRow)this.activeGameRow.className='';	
+				this.activeGameRow = inputObj.parentNode;	
+				
+				
+			}
+			inputObj.parentNode.className = 'activeRow';
+			
+			
+			var ot = inputObj.parentNode.offsetTop;
+			var tmpHeight = inputObj.parentNode.parentNode.parentNode.parentNode.offsetHeight;
+			var st = inputObj.parentNode.parentNode.parentNode.parentNode.scrollTop;
+			if(!document.all)st = document.getElementById('scrollingContent').scrollTop;
+			if(ot> ( tmpHeight + st - 20)){
+				if(!document.all)
+					document.getElementById('scrollingContent').scrollTop = ot - tmpHeight + 20;
+				else
+					inputObj.parentNode.parentNode.parentNode.parentNode.scrollTop = ot - tmpHeight + 20;
+			}
+			
+			if(ot < st && lastMoveInSequence){
+				if(!document.all)
+					document.getElementById('scrollingContent').scrollTop = Math.max(0,ot - 20);
+				else
+					inputObj.parentNode.parentNode.parentNode.parentNode.scrollTop = Math.max(0,ot - 20);				
+			}
+			
+			
+			var tHead = inputObj.parentNode.parentNode.parentNode.getElementsByTagName('THEAD')[0].getElementsByTagName('TR')[0];
+			tHead.style.top = inputObj.parentNode.parentNode.parentNode.parentNode.scrollTop + 'px';
+			
+		}
+		
+		,
+		
+		selectAGame : function()
+		{
+			if(widgetObj.ajaxIsBusy)return;
+			
+			widgetObj.highlightRow(this);
+			widgetObj.ajaxIsBusy = true;
+			widgetObj.ajax.requestFile = 'getGameData.php?getGameWithIndex=' + this.parentNode.id;	// Specifying which file to get
+			widgetObj.ajax.onCompletion = widgetObj.getMoves;	// Specify function that will be executed after file has been found
+			widgetObj.ajax.runAJAX();		// Execute AJAX function	
+						
+		}
+		
+		,
+		
+		showListOfGames : function()
+		{			
+			eval(widgetObj.ajax.response);
+			var firstCell = false;
+			var tBodyObj = document.getElementById('games').getElementsByTagName('TBODY')[0];
+			
+			var firstCell = false;
+			for(var no=0;no<widgetObj.games.length;no++){
+				var row = tBodyObj.insertRow(-1);
+				row.id = 'gameRow' + (no);
+				var cell = row.insertCell(-1);
+				cell.id = 'gameCell' + (no);
+				if(!firstCell)firstCell = cell;
+				cell.onclick = widgetObj.selectAGame;
+				cell.innerHTML = widgetObj.games[no][0];
+				var cell = row.insertCell(-1);
+				cell.innerHTML = widgetObj.games[no][1];
+				cell.onclick = widgetObj.selectAGame;
+				var cell = row.insertCell(-1);
+				cell.innerHTML = widgetObj.games[no][2];
+				cell.onclick = widgetObj.selectAGame;
+				cell.style.width = '40px';
+			}	
+			
+			
+			if(firstCell){
+				setTimeout('widgetObj.highlightRow(document.getElementById("' + firstCell.id + '"))',10);	
+				widgetObj.ajaxIsBusy = true;
+				widgetObj.ajax.requestFile = 'getGameData.php?getGameWithIndex=' + firstCell.parentNode.id;	// Specifying which file to get
+				widgetObj.ajax.onCompletion = widgetObj.getMoves;	// Specify function that will be executed after file has been found
+				widgetObj.ajax.runAJAX();		// Execute AJAX function					
+			}
+			widgetObj.ajaxIsBusy = false;
+			
+					
+		
+		}
+		
+		,
+		
+		moveToStart : function()
+		{
+			
+			if(!this.moves)return;
+			newMove = 0;
+
+			var row = 0;
+			prefix = 'white';
+			
+			widgetObj.highlightRow(document.getElementById(prefix + row));
+			this.createPieces();	// Reset original position
+		
+			
+		}
+		
+		,
+		
+		moveBackward : function()
+		{
+			if(!this.moves)return;
+			newMove = this.currentMove/1 - 1;
+			if(newMove<0)return;
+			
+			var row = Math.floor(newMove/2);
+			var cell = newMove%2;
+			if(cell==1)prefix = 'black'; else prefix = 'white';
+			
+			//widgetObj.highlightRow(document.getElementById(prefix + row));
+			this.createPieces();	// Reset original position
+			widgetObj.moveOnBoard(newMove);			
+			
+			
+		}
+		
+		,
+		
+		moveForward : function()
+		{
+			if(!this.moves)return;
+			var maxMoves = this.moves.length * 2 - (this.moves[this.moves.length-1].length==1?1:0);
+			newMove = this.currentMove/1 + 1;
+			if(newMove>maxMoves)return;
+			var row = Math.floor(this.currentMove/2);
+			var cell = this.currentMove%2;
+			if(cell==1)prefix = 'black'; else prefix = 'white';
+			widgetObj.moveOnBoard(newMove);
+		}
+				
+		,
+		
+		loadGames : function()
+		{
+			if(this.ajaxIsBusy)return;
+			this.ajaxIsBusy = true;
+			this.ajax.requestFile = 'getGameData.php?getGames=true';	// Specifying which file to get
+			this.ajax.onCompletion = this.showListOfGames;	// Specify function that will be executed after file has been found
+			this.ajax.runAJAX();		// Execute AJAX function				
+			
+			
+			
+		}
+		
+		,
+		play:function()
+		{
+			if(this.playModeInProgress)return;
+			this.playModeInProgress = true;
+			this.processPlay()
+			
+		}
+		
+		,
+		
+		stopPlaying : function()
+		{
+			this.playModeInProgress = false;		
+		}
+		
+		,
+		processPlay : function()
+		{
+			if(this.playModeInProgress){
+				this.moveForward();
+				setTimeout('widgetObj.processPlay()',this.playingSpeed)
+				
+			}	
+			
+			
+		}
+				
+		,
+		
+		createPieces : function()	// Position pieces
+		{
+			for(var type=0;type<2;type++){
+				
+				if(type==0)color = 'w'; else color = 'b';
+				
+				if(this.boardPieces.length==0){
+					this.boardPieces[0] = new Array();	// Array of white chess pieces
+					this.boardPieces[1] = new Array();	// Array of black chess pieces
+				}
+				if(type==0){
+					yOffset = (38*6); 
+					posMultiply = 1;
+				}else{
+					yOffset = 38;
+					posMultiply = -1;
+					
+				}
+				var row = 0;
+				for(var no=0;no<this.typesOfPieces.length;no++){
+					if(no==8)row=1;
+					var xPos = (no*38) - (row*304);
+					var yPos = (row*posMultiply) * 38 + yOffset;	
+					
+					
+					
+					if(document.getElementById(color + this.typesOfPieces[no] + '' + no)){
+						var div = document.getElementById(color + this.typesOfPieces[no] + '' + no);	// Get reference to created piece
+						
+						this.setPieceBg(div,(xPos/38 + 1),((yPos/38)-1*8));
+
+										
+					}else{	// Create elements
+						var div = document.createElement('DIV');
+						div.id = color + this.typesOfPieces[no] + '' + no;	
+						this.boardObj.appendChild(div);	
+						var img = document.createElement('IMG');
+						pieceType = ((no + row + type)%2==1)?"b":"w";
+						img.src = 'images/' + color + this.typesOfPieces[no].toLowerCase() + pieceType + '.gif';	
+						div.appendChild(img);	
+						
+						div.pieceType = this.typesOfPieces[no];
+						div.setAttribute('pieceType',this.typesOfPieces[no]);	
+						
+										
+					}		
+						
+
+					this.boardPieces[type][no] = new Array();
+					this.boardPieces[type][no]['x'] = xPos/38 + 1;					
+					this.boardPieces[type][no]['y'] = 8 - (yPos/38);
+					this.boardPieces[type][no]['obj'] = div;
+					this.boardPieces[type][no]['pieceType'] = this.typesOfPieces[no];
+					this.boardPieces[type][no]['onboard'] = true;
+					this.boardPieces[type][no]['obj'].style.display='block';
+									
+					div.style.left = xPos + 'px';
+					div.style.top = yPos + 'px';
+
+				}	
+				
+				this.currentMove = 0;
+			}				
+		}
+
+
+			
+	}
+	
+
+	
+
+
+	
+	function initScript()
+	{
+		var chessObj = new ChessWidget();
+		chessObj.initScript();
+		chessObj.createPieces();
+		if(useAjax)chessObj.loadGames();
+		chessObj.writeNotation();
+	}
+	
+	
+	
+	window.onload = initScript;
+
+
+	</script>
+</head>
+<body>
+<h1 id="headerText"></h1>
+
+<div id="boardAndMoves">
+	<div id="boardContainer">
+		<div id="number_18">
+			<div>8</div>
+			<div>7</div>
+			<div>6</div>
+			<div>5</div>
+			<div>4</div>
+			<div>3</div>
+			<div>2</div>
+			<div>1</div>
+		</div>
+		<div id="theBoard">
+
+		</div>
+		<div id="number_AH">
+			<div>A</div>
+			<div>B</div>
+			<div>C</div>
+			<div>D</div>
+			<div>E</div>
+			<div>F</div>
+			<div>G</div>
+			<div>H</div>
+		</div>
+	</div>
+	<div id="notation">
+		<table cellpadding="0" cellspacing="0">
+			<thead>
+				<tr>
+					<th>No.</th>
+					<th>White</th>
+					<th>Black</th>
+				</tr>
+			</thead>
+			<tbody class="scrollingContent" id="scrollingContent">
+
+			</tbody>
+		</table>	
+	</div>
+	<div class="clear"></div>
+</div>
+<div id="buttons">
+	<form>
+		<input type="button" onclick="widgetObj.moveToStart()" value="<<">
+		<input type="button" onclick="widgetObj.moveBackward()" value="<">
+		<input type="button" onclick="widgetObj.moveForward()" value=">">	
+		<input type="button" onclick="widgetObj.moveToEnd()" value=">>"><br>
+		<input type="button" class="playButtons" onclick="widgetObj.play()" value="Play">
+		<input type="button" class="playButtons"  onclick="widgetObj.stopPlaying()" value="Stop">
+	</form>
+</div>
+<div id="games">
+	<table cellpadding="0" cellspacing="0">
+		<thead>
+			<tr>
+				<th>White</th>
+				<th>Black</th>
+				<th>Result</th>
+			</tr>
+		</thead>
+		<tbody class="scrollingContent">
+
+		</tbody>
+	</table>	
+</div>	
+<div style="padding:5px">
+</div>
+<div id="debug"></div>
+
+</body>
+</html>
